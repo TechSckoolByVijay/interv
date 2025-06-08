@@ -17,10 +17,9 @@ from datetime import datetime
 from backend.app.util_queue import (
     send_message_to_service_bus,
     FileProcessPayload,
-    ServiceBusMessageModel, 
+    ServiceBusMessageModel,
     QuestionProcessPayload
 )
-import time  # Add this import at the top if not present
 
 
 router = APIRouter()
@@ -108,28 +107,15 @@ def start_interview(payload: schemas.QuestionAnswerCreate, db: Session = Depends
 
 @router.post("/more_questions", response_model=List[schemas.QuestionAnswerOut])
 def more_questions(payload: schemas.QuestionAnswerCreate, db: Session = Depends(get_db)):
-    # Check interview status first
-    interview = db.query(models.Interview).filter_by(id=payload.interview_id).first()
-    if not interview:
-        raise HTTPException(status_code=404, detail="Interview not found")
-    if interview.status == "COMPLETED":
-        logger.info(f"Interview {payload.interview_id} is COMPLETED. No more questions will be fetched.")
-        return []
+    # Fetch questions from QuestionAnswer with "NEW" status for the user and interview
+    new_questions = db.query(models.QuestionAnswer).filter_by(
+        user_id=payload.user_id,
+        interview_id=payload.interview_id,
+        status="NEW"
+    ).all()
+    logger.info(f"Fetched {len(new_questions)} NEW questions for user {payload.user_id} interview {payload.interview_id}")
+    return new_questions
 
-    # Try up to 6 times with 3 seconds sleep if no questions found
-    for attempt in range(6):
-        new_questions = db.query(models.QuestionAnswer).filter_by(
-            user_id=payload.user_id,
-            interview_id=payload.interview_id,
-            status="NEW"
-        ).all()
-        if new_questions:
-            logger.info(f"Fetched {len(new_questions)} NEW questions for user {payload.user_id} interview {payload.interview_id} on attempt {attempt+1}")
-            return new_questions
-        logger.info(f"No NEW questions found for user {payload.user_id} interview {payload.interview_id} on attempt {attempt+1}. Retrying in 3 seconds...")
-        time.sleep(3)
-    logger.info(f"No NEW questions found after 6 attempts for user {payload.user_id} interview {payload.interview_id}")
-    return []
 
 
 # /question API updates the status of question after user answers it.
@@ -143,25 +129,6 @@ def update_question_answer(qa_id: int, update: schemas.QuestionAnswerUpdate, db:
     db.commit()
     db.refresh(qa)
     logger.info(f"Updated QuestionAnswer {qa_id} with {update.dict(exclude_unset=True)}")
-
-    # Enqueue next_question message to service bus
-    correlationId = str(uuid4())
-    payload = QuestionProcessPayload(
-        interview_id=str(qa.interview_id),
-        question_id=str(qa.question_id)
-    )
-    message = ServiceBusMessageModel(
-        correlationId=correlationId,
-        session_id=f"{qa.user_id}-{qa.interview_id}",
-        action_type="next_question",
-        user_id=qa.user_id,
-        timestamp=datetime.utcnow().isoformat(),
-        status="asking for next question",
-        payload=payload
-    )
-    logger.info(f"Queuing next_question message to service bus: {message}")
-    send_message_to_service_bus(message.dict())
-
     return qa
 
 
@@ -186,4 +153,21 @@ async def upload_answer_type(
     with open(file_path, "wb") as buffer:
         buffer.write(file.file.read())
     logger.info(f"Saved {type} recording at {os.path.abspath(file_path)}")
+    #return {"path": file_path}
+
+    # After saving the last type (e.g., "combined"), enqueue the message
+    correlationId = str(uuid4())
+    payload = QuestionProcessPayload(interview_id="", question_id="")
+    message = ServiceBusMessageModel(
+        correlationId=correlationId,
+        session_id=f"{user_id}-{interview_id}",
+        action_type="next_question",
+        user_id=user_id,
+        timestamp=datetime.utcnow().isoformat(),
+        status="asking for next question",
+        payload=payload
+    )
+    logger.info(f"Queuing next_question message to service bus: {message}")
+    send_message_to_service_bus(message.dict())
+
     return {"path": file_path}

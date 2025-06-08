@@ -25,7 +25,8 @@ SUBSCRIPTION_NAME = os.getenv("SUBSCRIPTION_NAME")
 
 
 def next_question(payload: dict):
-    interview_id = payload.get("interview_id")
+    inner_payload = payload.get("payload", {})
+    interview_id = inner_payload.get("interview_id")
     #user_input = payload.get("user_input")
     if not interview_id:
         logger.error("Invalid payload received in evaluate_answer: %s", payload)

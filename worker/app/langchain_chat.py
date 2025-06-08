@@ -42,7 +42,7 @@ def generate_next_question(interview_id, db):
             messages.append(HumanMessage(content="SKIP"))
     question_count = len([qa for qa in qas if qa.question_text])
 
-    if question_count >= 3:
+    if question_count >= 5:
         return "Interview Over"
 
     # Generate next question
