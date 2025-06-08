@@ -1,0 +1,36 @@
+from langgraph.graph import StateGraph
+from worker.db_checkpoint import PostgresSaver
+
+# Custom node handlers
+def ask_first_question(state): ...
+def evaluate_user_answer(state): ...
+def ask_followup_question(state): ...
+
+memory = PostgresSaver(db_url="postgresql://user:pass@localhost:5432/mydb")
+
+def build_graph():
+    builder = StateGraph()
+
+    builder.add_node("ask_first", ask_first_question)
+    builder.add_node("evaluate", evaluate_user_answer)
+    builder.add_node("ask_next", ask_followup_question)
+
+    builder.set_entry_point("ask_first")
+    builder.add_edge("ask_first", "WAIT")
+    builder.add_edge("WAIT", "evaluate")
+    builder.add_edge("evaluate", "ask_next")
+    builder.add_edge("ask_next", "WAIT")
+
+    return builder.compile()
+
+graph = build_graph()
+
+async def run_graph(action, session_id, payload):
+    config = {"configurable": {"session_id": session_id}}
+
+    if action == "start":
+        result = graph.invoke(payload, config=config)
+    elif action == "resume":
+        result = graph.invoke(payload, config=config)
+
+    # Post next question back to backend (omitted)

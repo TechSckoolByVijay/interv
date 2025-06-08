@@ -1,0 +1,32 @@
+from shared.database import SessionLocal
+from shared import models
+
+def get_conversation_history(user_id: int, interview_id: int):
+    db = SessionLocal()
+    try:
+        qas = (
+            db.query(models.QuestionAnswer)
+            .filter_by(user_id=user_id, interview_id=interview_id)
+            .order_by(models.QuestionAnswer.id)
+            .all()
+        )
+        # Build context as list of (role, content)
+        history = []
+        for qa in qas:
+            if qa.answer_text:
+                history.append(("user", qa.answer_text))
+            if qa.ai_answer:
+                history.append(("ai", qa.ai_answer))
+        return history
+    finally:
+        db.close()
+
+def save_ai_answer(qa_id: int, ai_answer: str):
+    db = SessionLocal()
+    try:
+        qa = db.query(models.QuestionAnswer).filter_by(id=qa_id).first()
+        if qa:
+            qa.ai_answer = ai_answer
+            db.commit()
+    finally:
+        db.close()

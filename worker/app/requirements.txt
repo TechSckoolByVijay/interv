@@ -1,0 +1,13 @@
+FastAPI
+azure-servicebus
+sqlalchemy
+uvicorn
+python-dotenv
+pydantic
+asyncio
+psycopg2
+langchain
+langgraph
+openai
+
+psycopg2-binary

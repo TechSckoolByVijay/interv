@@ -1,0 +1,66 @@
+from fastapi import FastAPI
+from azure.servicebus import ServiceBusClient, ServiceBusMessage
+from shared.database import SessionLocal
+from shared import models
+from sqlalchemy.orm import Session
+import json
+import os
+import logging
+
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
+logger = logging.getLogger("processor")
+
+
+async def process_recording_message(message, SessionLocal):
+    logger.info("Received a new message from Service Bus.")
+    try:
+        # message.body may be a generator of bytes
+        if hasattr(message, "body"):
+            body_content = message.body
+            if hasattr(body_content, "__iter__") and not isinstance(body_content, (bytes, str, bytearray)):
+                # Join all bytes from the generator
+                body_bytes = b"".join(body_content)
+                body_str = body_bytes.decode("utf-8")
+            elif isinstance(body_content, bytes):
+                body_str = body_content.decode("utf-8")
+            else:
+                body_str = str(body_content)
+            data = json.loads(body_str)
+        else:
+            logger.error("Message has no body attribute")
+            raise RuntimeError("Message has no body attribute")
+    except Exception as e:
+        logger.exception(f"Failed to parse message body: {e}")
+        raise RuntimeError(f"Failed to parse message body: {e}")
+
+    logger.info(f"Processing message JSON: {json.dumps(data, indent=2)}")
+
+    user_id = data["userId"]
+    interview_id = data["interviewId"]
+    recording_path = data["payload"]["combinedPath"]
+
+    logger.info(f"Extracted user_id: {user_id}, interview_id: {interview_id}, recording_path: {recording_path}")
+
+    db = SessionLocal()
+    try:
+        logger.info("Querying Interview record in database...")
+        db_record = db.query(models.Interview).filter_by(user_id=user_id, id=interview_id).first()
+        if db_record:
+            logger.info("Interview record found. Updating recording_path.")
+            db_record.recording_path = recording_path
+            db.commit()
+            logger.info("Database commit successful.")
+            return {"status": "success", "message": "Recording processed"}
+        logger.warning("Interview record not found.")
+        return {"status": "error", "message": "Record not found"}
+    except Exception as db_exc:
+        logger.exception(f"Database operation failed: {db_exc}")
+        raise
+    finally:
+        db.close()
+        logger.info("Database session closed.")
