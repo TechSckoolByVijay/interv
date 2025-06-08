@@ -24,7 +24,7 @@ SUBSCRIPTION_NAME = os.getenv("SUBSCRIPTION_NAME")
 
 
 
-def evaluate_answer(payload: dict):
+def next_question(payload: dict):
     interview_id = payload.get("interview_id")
     #user_input = payload.get("user_input")
     if not interview_id:
@@ -54,7 +54,7 @@ def extract_audio_text(payload):
 TASK_DISPATCHER = {
     "pdf_extraction": extract_pdf_text,
     "audio_extraction": extract_audio_text,
-    "evaluate_answer": evaluate_answer,
+    "next_question": next_question,
 }
 
 def handle_message(message_body):

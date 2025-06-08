@@ -10,7 +10,13 @@ import os
 from .util_queue import send_message_to_service_bus
 from datetime import datetime
 import uuid
+from uuid import uuid4
 # shared/schemas.py
+from backend.app.util_queue import (
+    send_message_to_service_bus,
+    FileProcessPayload,
+    ServiceBusMessageModel,  # <-- use the new name
+)
 
 from pydantic import BaseModel
 from typing import Optional, Dict
@@ -41,7 +47,8 @@ def create_interview(interview: schemas.InterviewCreate, db: Session = Depends(g
     logger.info(f"/interview called with interview_name={interview.interview_name}, user_id={interview.user_id}")  # <-- log params
     db_interview = models.Interview(
         interview_name=interview.interview_name,
-        user_id=interview.user_id
+        user_id=interview.user_id,
+        status="NEW"
     )
     db.add(db_interview)
     db.commit()
@@ -50,6 +57,35 @@ def create_interview(interview: schemas.InterviewCreate, db: Session = Depends(g
     # logger.info(f"Starting Interview for user {payload.user_id} interview {payload.interview_id}")
     return db_interview
 
+
+@router.get("/interview/{interview_id}/status")
+def get_interview_status(interview_id: int, db: Session = Depends(get_db)):
+    interview = db.query(models.Interview).filter_by(id=interview_id).first()
+    if not interview:
+        raise HTTPException(status_code=404, detail="Interview not found")
+    return {"interview_id": interview.id, "status": interview.status}
+
+
+@router.post("/queue_next_question/{user_id}/{interview_id}")
+def queue_next_question(
+    user_id: int,
+    interview_id: int,
+):
+    payload = FileProcessPayload(docPath="", fileType="")
+    correlationId = str(uuid4())
+    message = ServiceBusMessageModel(
+        correlationId=correlationId,
+        session_id=f"{user_id}-{interview_id}",
+        action_type="next_question",
+        user_id=user_id,
+        timestamp=datetime.utcnow().isoformat(),
+        status="asking for next question",
+        payload=payload
+    )
+    logger.info(f"Queuing next_question message to service bus: {message}")
+    send_message_to_service_bus(message.dict())
+
+    return {"message": "Queued next_question", "correlationId": correlationId}
 
 
 @router.post("/start_interview", response_model=List[schemas.QuestionAnswerOut])
