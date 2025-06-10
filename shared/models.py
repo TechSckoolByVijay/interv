@@ -11,6 +11,10 @@ class User(Base):
     interviews = relationship("Interview", back_populates="user")
     jd_path = Column(String, nullable=True)
     resume_path = Column(String, nullable=True)
+    jd_text = Column(Text, nullable=True)             # <-- Add this line
+    resume_text = Column(Text, nullable=True)         # <-- Add this line
+    jd_status = Column(String, default="PENDING")     # <-- Add this line
+    resume_status = Column(String, default="PENDING") # <-- Add this line
 
 class Interview(Base):
     __tablename__ = "interviews"

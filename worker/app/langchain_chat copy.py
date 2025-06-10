@@ -2,32 +2,25 @@ from shared.logger import logger
 from shared.models import Interview, QuestionAnswer
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from langchain.chat_models import ChatOpenAI
-from sqlalchemy.orm import Session
-from shared import models
 
 llm = ChatOpenAI(model="gpt-4", temperature=0.7)
 
 
-def generate_next_question(interview_id: int, db: Session):
-    interview = db.query(models.Interview).filter_by(id=interview_id).first()
-    if not interview:
-        raise ValueError("Interview not found")
-    user = db.query(models.User).filter_by(id=interview.user_id).first()
-    if not user:
-        raise ValueError("User not found")
-
-    job_description = None
-    candidate_resume = None
-
-    if user.jd_status == "COMPLETED":
-        job_description = user.jd_text
-    if user.resume_status == "COMPLETED":
-        candidate_resume = user.resume_text
-
-    # Now use job_description and candidate_resume as needed
+def generate_next_question(interview_id, db):
     # Load conversation history
     qas = db.query(QuestionAnswer).filter_by(interview_id=interview_id).order_by(QuestionAnswer.id).all()
+    job_description = """
+    We are looking for a Cloud Solutions Architect with expertise in Azure, GenAI integration, and Python-based automation. The ideal candidate will lead cloud-native transformation and AI-powered modernization initiatives.
+    """
 
+    candidate_resume = """
+    Vijay Saini
+    Experience: 10+ years
+    Skills: Azure, GenAI, Python, Terraform, Kubernetes
+    Certifications: CKAD, Azure AI Fundamentals, Azure DevOps Expert
+    Projects: Led GenAI RAG pipeline on Azure OpenAI, built microservices platform on AKS
+    """
+    
     messages = [
         SystemMessage(
                 content=f"""You are a professional AI interviewer. Ask only one interview question at a time based on the job description and candidate resume. Do not list multiple questions. Wait for the candidate's answer before asking the next question. End with a decision.

@@ -72,50 +72,26 @@ async def upload_file(user_id: int, file_type: str, file: UploadFile = File(...)
 
     return {"filename": file.filename, "path": file_path}
 
-@router.get("/preview/{user_id}/{file_type}", summary="Preview JD or Resume")
-def preview_file(user_id: int, file_type: str, db: Session = Depends(get_db)):
-    user = db.query(models.User).filter_by(id=user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    if file_type == "jd":
-        if user.jd_text:
-            return {"text": user.jd_text}
-        else:
-            raise HTTPException(status_code=404, detail="JD text not found")
-    elif file_type == "resume":
-        if user.resume_text:
-            return {"text": user.resume_text}
-        else:
-            raise HTTPException(status_code=404, detail="Resume text not found")
-    else:
-        raise HTTPException(status_code=400, detail="Invalid file type")
+@router.get("/preview/{user_id}/{file_type}", response_class=FileResponse, summary="Preview JD or Resume")
+def preview_file(user_id: int, file_type: str):
+    dir_path = f"{UPLOAD_DIR}/{user_id}"
+    if not os.path.exists(dir_path):
+        raise HTTPException(status_code=404, detail="No files found")
+    for f in os.listdir(dir_path):
+        if f.startswith(file_type + "_"):
+            return FileResponse(f"{dir_path}/{f}")
+    raise HTTPException(status_code=404, detail="File not found")
 
 @router.delete("/delete/{user_id}/{file_type}", summary="Delete JD or Resume")
-def delete_file(user_id: int, file_type: str, db: Session = Depends(get_db)):
-    user = db.query(models.User).filter_by(id=user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+def delete_file(user_id: int, file_type: str):
     dir_path = f"{UPLOAD_DIR}/{user_id}"
+    if not os.path.exists(dir_path):
+        raise HTTPException(status_code=404, detail="No files found")
     deleted = False
-    if os.path.exists(dir_path):
-        for f in os.listdir(dir_path):
-            if f.startswith(file_type + "_"):
-                os.remove(f"{dir_path}/{f}")
-                deleted = True
-    # Update DB fields
-    if file_type == "jd":
-        user.jd_path = None
-        user.jd_text = None
-        user.jd_status = "NOT_AVAILABLE"
-        db.commit()
-        return {"detail": "JD deleted"}
-    elif file_type == "resume":
-        user.resume_path = None
-        user.resume_text = None
-        user.resume_status = "NOT_AVAILABLE"
-        db.commit()
-        return {"detail": "Resume deleted"}
-    else:
-        raise HTTPException(status_code=400, detail="Invalid file type")
+    for f in os.listdir(dir_path):
+        if f.startswith(file_type + "_"):
+            os.remove(f"{dir_path}/{f}")
+            deleted = True
     if not deleted:
         raise HTTPException(status_code=404, detail="File not found")
+    return {"detail": "File deleted"}

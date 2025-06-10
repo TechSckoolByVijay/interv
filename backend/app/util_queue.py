@@ -18,8 +18,8 @@ logger = logging.getLogger("servicebus")
 logger.setLevel(logging.INFO)
 
 class FileProcessPayload(BaseModel):
-    docPath: str
-    fileType: str
+    file_path: str
+    file_type: str
 
 class QuestionProcessPayload(BaseModel):
     interview_id: int

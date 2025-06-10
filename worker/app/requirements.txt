@@ -11,3 +11,7 @@ langgraph
 openai
 
 psycopg2-binary
+azure.ai.documentintelligence
+azure.core
+langchain-community
+langchain-openai
