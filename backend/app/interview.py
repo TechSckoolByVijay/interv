@@ -132,6 +132,32 @@ def more_questions(payload: schemas.QuestionAnswerCreate, db: Session = Depends(
     return []
 
 
+
+@router.post("/upload_answer/{user_id}/{interview_id}/{question_id}/{type}")
+async def upload_answer_type(
+    user_id: int,
+    interview_id: int,
+    question_id: int,
+    type: str,
+    file: UploadFile = File(...)
+):
+    # Save file logic...
+    file_path = f"uploads/{user_id}/{interview_id}/{question_id}_{type}_{file.filename}"
+    
+    allowed_types = {"audio", "camera", "screen", "combined"}
+    if type not in allowed_types:
+        raise HTTPException(status_code=400, detail="Invalid recording type")
+    upload_dir = f"uploads/{user_id}/{interview_id}"
+    os.makedirs(upload_dir, exist_ok=True)
+    file_path = f"{upload_dir}/{file.filename}"
+    with open(file_path, "wb") as buffer:
+        buffer.write(file.file.read())
+    logger.info(f"Saved {type} recording at {os.path.abspath(file_path)}")
+
+    return {"path": file_path}
+
+
+
 # /question API updates the status of question after user answers it.
 @router.patch("/question/{qa_id}", response_model=schemas.QuestionAnswerOut)
 def update_question_answer(qa_id: int, update: schemas.QuestionAnswerUpdate, db: Session = Depends(get_db)):
@@ -153,7 +179,7 @@ def update_question_answer(qa_id: int, update: schemas.QuestionAnswerUpdate, db:
     message = ServiceBusMessageModel(
         correlationId=correlationId,
         session_id=f"{qa.user_id}-{qa.interview_id}",
-        action_type="next_question",
+        action_type="process_question",
         user_id=qa.user_id,
         timestamp=datetime.utcnow().isoformat(),
         status="asking for next question",
@@ -164,46 +190,3 @@ def update_question_answer(qa_id: int, update: schemas.QuestionAnswerUpdate, db:
 
     return qa
 
-
-
-@router.post("/upload_answer/{user_id}/{interview_id}/{question_id}/{type}")
-async def upload_answer_type(
-    user_id: int,
-    interview_id: int,
-    question_id: int,
-    type: str,
-    file: UploadFile = File(...)
-):
-    # Save file logic...
-    file_path = f"uploads/{user_id}/{interview_id}/{question_id}_{type}_{file.filename}"
-    
-    allowed_types = {"audio", "camera", "screen", "combined"}
-    if type not in allowed_types:
-        raise HTTPException(status_code=400, detail="Invalid recording type")
-    upload_dir = f"uploads/{user_id}/{interview_id}"
-    os.makedirs(upload_dir, exist_ok=True)
-    file_path = f"{upload_dir}/{question_id}_{type}_{file.filename}"
-    with open(file_path, "wb") as buffer:
-        buffer.write(file.file.read())
-    logger.info(f"Saved {type} recording at {os.path.abspath(file_path)}")
-
-    # Add Service Bus message if audio uploaded
-    if type == "audio":
-        correlationId = str(uuid4())
-        payload = QuestionProcessPayload(
-            interview_id=str(interview_id),
-            question_id=str(question_id)
-        )
-        message = ServiceBusMessageModel(
-            correlationId=correlationId,
-            session_id=f"{user_id}-{interview_id}",
-            action_type="audio_extraction",
-            user_id=user_id,
-            timestamp=datetime.utcnow().isoformat(),
-            status="audio uploaded",
-            payload=payload
-        )
-        logger.info(f"Queuing audio_extraction message to service bus: {message}")
-        send_message_to_service_bus(message.dict())
-
-    return {"path": file_path}

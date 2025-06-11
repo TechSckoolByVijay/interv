@@ -273,7 +273,7 @@ export default function Interview() {
       for (const type of ["audio", "camera", "screen", "combined"]) {
         const blob = blobs[type];
         if (blob && blob.size > 0) {
-          const fileName = `${USER_ID}-${interviewId}-${questions[currentIdx].question_id}_${type}.webm`;
+          const fileName = `${questions[currentIdx].question_id}_${type}.webm`;
           const formData = new FormData();
           formData.append("file", new File([blob], fileName, { type: "video/webm" }));
           try {
@@ -294,10 +294,10 @@ export default function Interview() {
       // Patch backend with file paths
       console.log(`[Interview] [Q${currentIdx + 1}] Patching backend with recording paths...`);
       await axios.patch(`/api/interview/question/${questions[currentIdx].id}`, {
-        audio_recording_path: `uploads/${USER_ID}/${interviewId}/${questions[currentIdx].question_id}_audio_${USER_ID}-${interviewId}-${questions[currentIdx].question_id}-audio.webm`,
-        screen_recording_path: `uploads/${USER_ID}/${interviewId}/${questions[currentIdx].question_id}_screen_${USER_ID}-${interviewId}-${questions[currentIdx].question_id}-screen.webm`,
-        camera_recording_path: `uploads/${USER_ID}/${interviewId}/${questions[currentIdx].question_id}_camera_${USER_ID}-${interviewId}-${questions[currentIdx].question_id}-camera.webm`,
-        combined_recording_path: `uploads/${USER_ID}/${interviewId}/${questions[currentIdx].question_id}_combined_${USER_ID}-${interviewId}-${questions[currentIdx].question_id}-combined.webm`,
+        audio_recording_path: `uploads/${USER_ID}/${interviewId}/${questions[currentIdx].question_id}_audio.webm`,
+        screen_recording_path: `uploads/${USER_ID}/${interviewId}/${questions[currentIdx].question_id}_screen.webm`,
+        camera_recording_path: `uploads/${USER_ID}/${interviewId}/${questions[currentIdx].question_id}_camera.webm`,
+        combined_recording_path: `uploads/${USER_ID}/${interviewId}/${questions[currentIdx].question_id}_combined.webm`,
         status: "ATTEMPTED",
       });
       console.log(`[Interview] [Q${currentIdx + 1}] Backend patched successfully.`);

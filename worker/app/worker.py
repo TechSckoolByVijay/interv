@@ -25,78 +25,6 @@ SUBSCRIPTION_NAME = os.getenv("SUBSCRIPTION_NAME")
 
 
 
-
-def next_question(payload: dict):
-    inner_payload = payload.get("payload", {})
-    interview_id = inner_payload.get("interview_id")
-    #user_input = payload.get("user_input")
-    if not interview_id:
-        logger.error("Invalid payload received in evaluate_answer: %s", payload)
-        return
-
-    logger.info(f"Evaluating answer for interview_id={interview_id}")
-    db = SessionLocal()
-
-    # Save user's answer to DB
-    last_qa = db.query(QuestionAnswer).filter_by(interview_id=interview_id).order_by(QuestionAnswer.id.desc()).first()
-    if last_qa and not last_qa.answer_text:
-        #last_qa.answer_text = user_input
-        last_qa.status = "ANSWERED"
-        db.commit()
-
-    # Generate next question or finish
-    result = generate_next_question(interview_id, db)
-    logger.info(f"Next step for Interview {interview_id}: {result}")
-
-def extract_pdf_text(payload):
-    logger.info(f"PDF extraction handler called with payload: {payload}")
-
-def extract_audio_text(payload: dict):
-    """
-    Handles audio_extraction task: extracts text from audio and updates the DB.
-    Uses the audio_recording_path from the QuestionAnswer record.
-    """
-    inner_payload = payload.get("payload", {})
-    interview_id = inner_payload.get("interview_id")
-    question_id = inner_payload.get("question_id")
-    user_id = payload.get("user_id")
-
-    if not interview_id or not question_id or not user_id:
-        logger.error("Invalid payload received in extract_audio_text: %s", payload)
-        return
-
-    db = SessionLocal()
-    try:
-        qa = db.query(QuestionAnswer).filter_by(interview_id=interview_id, question_id=question_id).first()
-        if not qa:
-            logger.error(f"QuestionAnswer not found for interview_id={interview_id}, question_id={question_id}")
-            db.close()
-            return
-
-        # Always resolve path from project root
-        audio_path = qa.audio_recording_path
-        abs_audio_path = os.path.abspath(audio_path)
-        if not os.path.exists(abs_audio_path):
-            logger.error(f"Audio file not found at path: {abs_audio_path}")
-            db.close()
-            return
-
-        logger.info(f"Starting audio extraction for user_id={user_id}, interview_id={interview_id}, question_id={question_id}, audio_path={abs_audio_path}")
-
-        # Extract text from audio
-        answer_text = extract_text_from_audio(abs_audio_path)
-        qa.answer_text = answer_text
-        if hasattr(qa, "IS_Candidate_Answer_Processed"):
-            qa.IS_Candidate_Answer_Processed = True  # Only if column exists
-
-        db.commit()
-        logger.info(f"Audio processed and answer_text updated for QuestionAnswer id={qa.id}")
-    except Exception as e:
-        logger.error(f"Error processing audio for interview_id={interview_id}, question_id={question_id}: {e}", exc_info=True)
-        db.rollback()
-    finally:
-        db.close()
-
 def doc_upload(payload: dict):
     inner_payload = payload.get("payload", {})
     user_id = payload.get("user_id")
@@ -146,10 +74,138 @@ def doc_upload(payload: dict):
     finally:
         db.close()
 
+
+#def extract_audio_text(payload: dict):
+#     """
+#     Handles audio_extraction task: extracts text from audio and updates the DB.
+#     Uses the audio_recording_path from the QuestionAnswer record.
+#     """
+#     inner_payload = payload.get("payload", {})
+#     interview_id = inner_payload.get("interview_id")
+#     question_id = inner_payload.get("question_id")
+#     user_id = payload.get("user_id")
+
+#     if not interview_id or not question_id or not user_id:
+#         logger.error("Invalid payload received in extract_audio_text: %s", payload)
+#         return
+
+#     db = SessionLocal()
+#     try:
+#         qa = db.query(QuestionAnswer).filter_by(interview_id=interview_id, question_id=question_id).first()
+#         if not qa:
+#             logger.error(f"QuestionAnswer not found for interview_id={interview_id}, question_id={question_id}")
+#             db.close()
+#             return
+
+#         # Always resolve path from project root
+#         audio_path = qa.audio_recording_path
+#         abs_audio_path = os.path.abspath(audio_path)
+#         if not os.path.exists(abs_audio_path):
+#             logger.error(f"Audio file not found at path: {abs_audio_path}")
+#             db.close()
+#             return
+
+#         logger.info(f"Starting audio extraction for user_id={user_id}, interview_id={interview_id}, question_id={question_id}, audio_path={abs_audio_path}")
+
+#         # Extract text from audio
+#         answer_text = extract_text_from_audio(abs_audio_path)
+#         qa.answer_text = answer_text
+#         if hasattr(qa, "IS_Candidate_Answer_Processed"):
+#             qa.IS_Candidate_Answer_Processed = True  # Only if column exists
+
+#         db.commit()
+#         logger.info(f"Audio processed and answer_text updated for QuestionAnswer id={qa.id}")
+#     except Exception as e:
+#         logger.error(f"Error processing audio for interview_id={interview_id}, question_id={question_id}: {e}", exc_info=True)
+#         db.rollback()
+#     finally:
+#         db.close()
+
+# def next_question(payload: dict):
+#     inner_payload = payload.get("payload", {})
+#     interview_id = inner_payload.get("interview_id")
+#     #user_input = payload.get("user_input")
+#     if not interview_id:
+#         logger.error("Invalid payload received in evaluate_answer: %s", payload)
+#         return
+
+#     logger.info(f"Evaluating answer for interview_id={interview_id}")
+#     db = SessionLocal()
+
+#     # Save user's answer to DB
+#     last_qa = db.query(QuestionAnswer).filter_by(interview_id=interview_id).order_by(QuestionAnswer.id.desc()).first()
+#     if last_qa and not last_qa.answer_text:
+#         #last_qa.answer_text = user_input
+#         last_qa.status = "ANSWERED"
+#         db.commit()
+
+#     # Generate next question or finish
+#     result = generate_next_question(interview_id, db)
+#     logger.info(f"Next step for Interview {interview_id}: {result}")
+
+
+# 
+
+def process_question(payload: dict):
+    """
+    Handles audio_extraction: extracts text from audio, updates the DB,
+    marks answer as processed, and generates the next question.
+    """
+    inner_payload = payload.get("payload", {})
+    interview_id = inner_payload.get("interview_id")
+    question_id = inner_payload.get("question_id")
+    user_id = payload.get("user_id")
+
+    if not interview_id or not question_id or not user_id:
+        logger.error("Invalid payload received in process_question: %s", payload)
+        return
+
+    db = SessionLocal()
+    try:
+        qa = db.query(QuestionAnswer).filter_by(interview_id=interview_id, question_id=question_id).first()
+        if not qa:
+            logger.error(f"QuestionAnswer not found for interview_id={interview_id}, question_id={question_id}")
+            db.close()
+            return
+
+        # Always resolve path from project root
+        audio_path = qa.audio_recording_path
+        abs_audio_path = os.path.abspath(audio_path)
+        if not os.path.exists(abs_audio_path):
+            logger.error(f"Audio file not found at path: {abs_audio_path}")
+            db.close()
+            return
+
+        logger.info(f"Starting audio extraction for user_id={user_id}, interview_id={interview_id}, question_id={question_id}, audio_path={abs_audio_path}")
+
+        # Save user's answer to DB
+        last_qa = db.query(QuestionAnswer).filter_by(interview_id=interview_id).order_by(QuestionAnswer.id.desc()).first()
+        if last_qa and not last_qa.answer_text:
+            #last_qa.answer_text = user_input
+            last_qa.status = "ANSWERED"
+            db.commit()
+
+        # Extract text from audio
+        answer_text = extract_text_from_audio(abs_audio_path)
+        qa.answer_text = answer_text
+        qa.status = "Answer_Audio_Extracted"
+        db.commit()
+        logger.info(f"Audio processed and answer_text updated for QuestionAnswer id={qa.id}")
+
+        # Generate next question or finish
+        result = generate_next_question(interview_id, db)
+        logger.info(f"Next step for Interview {interview_id}: {result}")
+        
+
+    except Exception as e:
+        logger.error(f"Error processing audio for interview_id={interview_id}, question_id={question_id}: {e}", exc_info=True)
+        db.rollback()
+    finally:
+        db.close()
+
+# Update the dispatcher to use process_question for audio_extraction
 TASK_DISPATCHER = {
-    "pdf_extraction": extract_pdf_text,
-    "audio_extraction": extract_audio_text,
-    "next_question": next_question,
+    "process_question": process_question,
     "doc_upload": doc_upload,
 }
 

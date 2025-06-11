@@ -150,6 +150,8 @@ This project must be fully containerized using Docker.
 
 ## To start the backend app manualy 
 ### (venv) PS C:\Learning Lab\GenAI\interviewer\backend> uvicorn app.main:app --host 0.0.0.0 --port 8000
+# uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
+
 
 ## .\venv\Scripts\activate
 ## cd ../..
