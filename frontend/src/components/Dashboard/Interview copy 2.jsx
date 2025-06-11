@@ -51,7 +51,7 @@ function useJDResumeStatus() {
 }
 
 // --- Replace your AIQuestionAudio with this version ---
-const AIQuestionAudio = React.forwardRef(({ text, onEnd }, ref) => {
+const AIQuestionAudio = React.forwardRef(({ text }, ref) => {
   const [playing, setPlaying] = useState(false);
   const utteranceRef = useRef(null);
 
@@ -60,10 +60,7 @@ const AIQuestionAudio = React.forwardRef(({ text, onEnd }, ref) => {
       if (!window.speechSynthesis) return;
       window.speechSynthesis.cancel();
       const utter = new window.SpeechSynthesisUtterance(text);
-      utter.onend = () => {
-        setPlaying(false);
-        if (onEnd) onEnd(); // <-- Notify parent when finished
-      };
+      utter.onend = () => setPlaying(false);
       utter.onerror = () => setPlaying(false);
       utteranceRef.current = utter;
       setPlaying(true);
@@ -73,7 +70,7 @@ const AIQuestionAudio = React.forwardRef(({ text, onEnd }, ref) => {
       window.speechSynthesis.cancel();
       setPlaying(false);
     }
-  }), [text, onEnd]);
+  }), [text]);
 
   useEffect(() => () => window.speechSynthesis.cancel(), [text]);
 
@@ -178,7 +175,6 @@ export default function Interview() {
   const jdResume = useJDResumeStatus();
   const [interviewStarted, setInterviewStarted] = useState(false);
   const audioRef = useRef();
-  const [readyToRecord, setReadyToRecord] = useState(false);
 
   // Add state and ref for camera stream
   const [cameraStream, setCameraStream] = useState(null);
@@ -211,16 +207,9 @@ export default function Interview() {
 
   useEffect(() => {
     if (audioRef.current && typeof audioRef.current.play === "function") {
-      setReadyToRecord(false);
       audioRef.current.play();
     }
   }, [currentIdx]);
-
-  // Start recording only after AI question audio ends
-  const handleAIQuestionEnd = async () => {
-    await startContinuousMulti();
-    setReadyToRecord(true);
-  };
 
   const {
     start: startContinuousMulti,
@@ -450,7 +439,7 @@ export default function Interview() {
             </Typography>
           </Stack>
           <Box sx={{ flex: 2, minWidth: 350, maxWidth: 600 }}>
-            <AIQuestionAudio ref={audioRef} text={q.question_text} onEnd={handleAIQuestionEnd} />
+            <AIQuestionAudio ref={audioRef} text={q.question_text} />
             <Typography variant="h5" fontWeight={700} mb={1}>
               Question {currentIdx + 1}:
             </Typography>

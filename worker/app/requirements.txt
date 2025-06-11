@@ -15,3 +15,6 @@ azure.ai.documentintelligence
 azure.core
 langchain-community
 langchain-openai
+SpeechRecognition
+pydub
+ffmpeg-python

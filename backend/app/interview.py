@@ -186,4 +186,24 @@ async def upload_answer_type(
     with open(file_path, "wb") as buffer:
         buffer.write(file.file.read())
     logger.info(f"Saved {type} recording at {os.path.abspath(file_path)}")
+
+    # Add Service Bus message if audio uploaded
+    if type == "audio":
+        correlationId = str(uuid4())
+        payload = QuestionProcessPayload(
+            interview_id=str(interview_id),
+            question_id=str(question_id)
+        )
+        message = ServiceBusMessageModel(
+            correlationId=correlationId,
+            session_id=f"{user_id}-{interview_id}",
+            action_type="audio_extraction",
+            user_id=user_id,
+            timestamp=datetime.utcnow().isoformat(),
+            status="audio uploaded",
+            payload=payload
+        )
+        logger.info(f"Queuing audio_extraction message to service bus: {message}")
+        send_message_to_service_bus(message.dict())
+
     return {"path": file_path}

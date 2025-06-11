@@ -7,6 +7,7 @@ from shared.models import Interview, QuestionAnswer, User  # Add this import
 from shared.database import SessionLocal
 from worker.app.langchain_chat import generate_next_question
 from worker.app.pdf_to_text import extract_text_from_pdf  # Add this import
+from worker.app.audio_to_text import extract_text_from_audio  # Add this import
 from dotenv import load_dotenv
 #from worker.app.langgraph_interview import graph
 import os
@@ -50,8 +51,51 @@ def next_question(payload: dict):
 def extract_pdf_text(payload):
     logger.info(f"PDF extraction handler called with payload: {payload}")
 
-def extract_audio_text(payload):
-    logger.info(f"Audio extraction handler called with payload: {payload}")
+def extract_audio_text(payload: dict):
+    """
+    Handles audio_extraction task: extracts text from audio and updates the DB.
+    Uses the audio_recording_path from the QuestionAnswer record.
+    """
+    inner_payload = payload.get("payload", {})
+    interview_id = inner_payload.get("interview_id")
+    question_id = inner_payload.get("question_id")
+    user_id = payload.get("user_id")
+
+    if not interview_id or not question_id or not user_id:
+        logger.error("Invalid payload received in extract_audio_text: %s", payload)
+        return
+
+    db = SessionLocal()
+    try:
+        qa = db.query(QuestionAnswer).filter_by(interview_id=interview_id, question_id=question_id).first()
+        if not qa:
+            logger.error(f"QuestionAnswer not found for interview_id={interview_id}, question_id={question_id}")
+            db.close()
+            return
+
+        # Always resolve path from project root
+        audio_path = qa.audio_recording_path
+        abs_audio_path = os.path.abspath(audio_path)
+        if not os.path.exists(abs_audio_path):
+            logger.error(f"Audio file not found at path: {abs_audio_path}")
+            db.close()
+            return
+
+        logger.info(f"Starting audio extraction for user_id={user_id}, interview_id={interview_id}, question_id={question_id}, audio_path={abs_audio_path}")
+
+        # Extract text from audio
+        answer_text = extract_text_from_audio(abs_audio_path)
+        qa.answer_text = answer_text
+        if hasattr(qa, "IS_Candidate_Answer_Processed"):
+            qa.IS_Candidate_Answer_Processed = True  # Only if column exists
+
+        db.commit()
+        logger.info(f"Audio processed and answer_text updated for QuestionAnswer id={qa.id}")
+    except Exception as e:
+        logger.error(f"Error processing audio for interview_id={interview_id}, question_id={question_id}: {e}", exc_info=True)
+        db.rollback()
+    finally:
+        db.close()
 
 def doc_upload(payload: dict):
     inner_payload = payload.get("payload", {})
