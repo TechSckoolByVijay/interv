@@ -18,3 +18,4 @@ langchain-openai
 SpeechRecognition
 pydub
 ffmpeg-python
+langsmith

@@ -117,7 +117,7 @@ def more_questions(payload: schemas.QuestionAnswerCreate, db: Session = Depends(
         return []
 
     # Try up to 6 times with 3 seconds sleep if no questions found
-    for attempt in range(6):
+    for attempt in range(15):
         new_questions = db.query(models.QuestionAnswer).filter_by(
             user_id=payload.user_id,
             interview_id=payload.interview_id,
@@ -128,7 +128,7 @@ def more_questions(payload: schemas.QuestionAnswerCreate, db: Session = Depends(
             return new_questions
         logger.info(f"No NEW questions found for user {payload.user_id} interview {payload.interview_id} on attempt {attempt+1}. Retrying in 3 seconds...")
         time.sleep(3)
-    logger.info(f"No NEW questions found after 6 attempts for user {payload.user_id} interview {payload.interview_id}")
+    logger.info(f"No NEW questions found after 15 attempts for user {payload.user_id} interview {payload.interview_id}")
     return []
 
 

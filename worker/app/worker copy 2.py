@@ -14,18 +14,6 @@ import os
 #from shared.models import Interview, QuestionAnswer
 from shared.logger import logger
 from sqlalchemy.orm import Session
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
-from langchain.chat_models import ChatOpenAI
-
-
-load_dotenv()  # Load environment variables from .env file
-
-SERVICE_BUS_CONNECTION_STR = os.getenv("SERVICE_BUS_CONNECTION_STR")
-TOPIC_NAME = os.getenv("TOPIC_NAME")
-SUBSCRIPTION_NAME = os.getenv("SUBSCRIPTION_NAME")
-
-
-
 
 GRADE_SCALE = [
     (9, "A"),
@@ -42,16 +30,11 @@ def grade_score(score):
             return grade
     return "F"
 
-llm = ChatOpenAI(model="gpt-4", temperature=0.7)
-
-
 def performance_measure(payload: dict):
     """
     Evaluates all answers in an interview, generates ideal answers, scores, and grades.
-    Also updates overall interview score and pass/fail status.
     """
-    inner_payload = payload.get("payload", {})
-    interview_id = inner_payload.get("interview_id")
+    interview_id = payload.get("interview_id")
     if not interview_id:
         logger.error("No interview_id in payload: %s", payload)
         return
@@ -71,10 +54,6 @@ def performance_measure(payload: dict):
         resume = user.resume_text or ""
 
         qas = db.query(QuestionAnswer).filter_by(interview_id=interview_id).order_by(QuestionAnswer.id).all()
-        total_score = 0
-        total_questions = 0
-        pass_count = 0
-
         for qa in qas:
             if not qa.question_text or not qa.answer_text:
                 continue
@@ -86,14 +65,14 @@ def performance_measure(payload: dict):
                 f"Question: {qa.question_text}\n"
                 "What is the ideal answer to this question for this job? Respond concisely."
             )
-            ai_answer = llm.invoke([HumanMessage(content=prompt)]).content.strip()
+            ideal_answer = llm.invoke([HumanMessage(content=prompt)]).content.strip()
 
             # Compare user's answer to ideal answer
             compare_prompt = (
                 f"Job Description:\n{jd}\n\n"
                 f"Candidate Resume:\n{resume}\n\n"
                 f"Question: {qa.question_text}\n"
-                f"Ideal Answer: {ai_answer}\n"
+                f"Ideal Answer: {ideal_answer}\n"
                 f"Candidate's Answer: {qa.answer_text}\n"
                 "Score the candidate's answer out of 10 and assign a grade (A=best, F=fail). "
                 "Respond in JSON: {\"score\": <int>, \"grade\": \"A-F\"} and a short justification."
@@ -116,33 +95,11 @@ def performance_measure(payload: dict):
                 grade = "F"
 
             # Update DB
-            qa.ai_answer = ai_answer
-            qa.candidate_score = score
-            qa.candidate_grade = grade
+            qa.ideal_answer = ideal_answer
+            qa.answer_score = score
+            qa.answer_grade = grade
             db.commit()
             logger.info(f"Evaluated Q{qa.id}: score={score}, grade={grade}")
-
-            total_score += score
-            total_questions += 1
-            if grade != "F":
-                pass_count += 1
-
-        # Calculate overall score in percentage
-        if total_questions > 0:
-            max_total = total_questions * 10
-            score_percentage = (total_score / max_total) * 100
-            interview.score_in_percentage = f"{score_percentage:.2f}"
-            # Pass if at least 60% of questions are not 'F'
-            interview_cleared = "Pass" if pass_count / total_questions >= 0.6 else "Fail"
-            interview.interview_cleared_by_candidate = interview_cleared
-        else:
-            interview.score_in_percentage = "0.00"
-            interview.interview_cleared_by_candidate = "Fail"
-
-        # After evaluating all questions, update interview status
-        interview.status = "AI_EVALUATION_DONE"
-        db.commit()
-        logger.info(f"Interview {interview_id} status updated to AI_EVALUATION_DONE, score: {interview.score_in_percentage}, result: {interview.interview_cleared_by_candidate}")
 
     except Exception as e:
         logger.error(f"Error in performance_measure: {e}", exc_info=True)
@@ -150,6 +107,14 @@ def performance_measure(payload: dict):
     finally:
         db.close()
 
+
+
+
+load_dotenv()  # Load environment variables from .env file
+
+SERVICE_BUS_CONNECTION_STR = os.getenv("SERVICE_BUS_CONNECTION_STR")
+TOPIC_NAME = os.getenv("TOPIC_NAME")
+SUBSCRIPTION_NAME = os.getenv("SUBSCRIPTION_NAME")
 
 
 
@@ -335,7 +300,6 @@ def process_question(payload: dict):
 TASK_DISPATCHER = {
     "process_question": process_question,
     "doc_upload": doc_upload,
-    "performance_measure": performance_measure,
 }
 
 def handle_message(message_body):

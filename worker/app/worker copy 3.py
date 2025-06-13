@@ -48,10 +48,11 @@ llm = ChatOpenAI(model="gpt-4", temperature=0.7)
 def performance_measure(payload: dict):
     """
     Evaluates all answers in an interview, generates ideal answers, scores, and grades.
-    Also updates overall interview score and pass/fail status.
     """
     inner_payload = payload.get("payload", {})
     interview_id = inner_payload.get("interview_id")
+    
+    #interview_id = payload.get("interview_id")
     if not interview_id:
         logger.error("No interview_id in payload: %s", payload)
         return
@@ -71,10 +72,6 @@ def performance_measure(payload: dict):
         resume = user.resume_text or ""
 
         qas = db.query(QuestionAnswer).filter_by(interview_id=interview_id).order_by(QuestionAnswer.id).all()
-        total_score = 0
-        total_questions = 0
-        pass_count = 0
-
         for qa in qas:
             if not qa.question_text or not qa.answer_text:
                 continue
@@ -122,27 +119,10 @@ def performance_measure(payload: dict):
             db.commit()
             logger.info(f"Evaluated Q{qa.id}: score={score}, grade={grade}")
 
-            total_score += score
-            total_questions += 1
-            if grade != "F":
-                pass_count += 1
-
-        # Calculate overall score in percentage
-        if total_questions > 0:
-            max_total = total_questions * 10
-            score_percentage = (total_score / max_total) * 100
-            interview.score_in_percentage = f"{score_percentage:.2f}"
-            # Pass if at least 60% of questions are not 'F'
-            interview_cleared = "Pass" if pass_count / total_questions >= 0.6 else "Fail"
-            interview.interview_cleared_by_candidate = interview_cleared
-        else:
-            interview.score_in_percentage = "0.00"
-            interview.interview_cleared_by_candidate = "Fail"
-
         # After evaluating all questions, update interview status
         interview.status = "AI_EVALUATION_DONE"
         db.commit()
-        logger.info(f"Interview {interview_id} status updated to AI_EVALUATION_DONE, score: {interview.score_in_percentage}, result: {interview.interview_cleared_by_candidate}")
+        logger.info(f"Interview {interview_id} status updated to AI_EVALUATION_DONE")
 
     except Exception as e:
         logger.error(f"Error in performance_measure: {e}", exc_info=True)

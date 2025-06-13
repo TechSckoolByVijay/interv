@@ -4,7 +4,7 @@ from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from langchain.chat_models import ChatOpenAI
 from sqlalchemy.orm import Session
 from shared import models
-
+   
 llm = ChatOpenAI(model="gpt-4", temperature=0.7)
 
 

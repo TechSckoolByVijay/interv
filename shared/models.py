@@ -22,7 +22,9 @@ class Interview(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     interview_name = Column(String)
     user = relationship("User", back_populates="interviews")
-    status = Column(String, default="Active")  # <-- Add this line
+    score_in_percentage = Column(String)
+    interview_cleared_by_candidate  = Column(String)
+    status = Column(String, default="Active") 
 
 class QuestionAnswer(Base):
     __tablename__ = "question_answers"

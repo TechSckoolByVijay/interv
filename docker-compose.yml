@@ -33,7 +33,7 @@ services:
     depends_on:
       - db
       
-  background-processes:
+  worker-app:
     build:
       context: ./background-processes
     command: uvicorn app.main:app --host 0.0.0.0 --port 8002
@@ -48,17 +48,17 @@ services:
       # Add dependencies if needed, e.g.:
       # - some-db-service
       
-  # Add this service to your docker-compose.yml
-  # frontend:
-  #   build:
-  #     context: ./frontend
-  #     dockerfile: Dockerfile.frontend
-  #   ports:
-  #     - "3000:3000"
-  #   depends_on:
-  #     - backend
-  #   environment:
-  #     - REACT_APP_API_URL=http://backend:8000/api
+  #Add this service to your docker-compose.yml
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    environment:
+      - REACT_APP_API_URL=http://backend:8000/api
 
 volumes:
   postgres_data:
