@@ -83,7 +83,22 @@ function InterviewSummaryCard({ summary, onViewDetails }) {
         </Typography>
       )}
       {summary.interview_cleared_by_candidate && (
-        <Typography variant="body2" sx={{ color: "#66bb6a", fontWeight: 600 }} mb={2}>
+        <Typography
+          variant="body2"
+          sx={{
+            color: ["pass", "cleared"].includes(
+              String(summary.interview_cleared_by_candidate).toLowerCase()
+            )
+              ? "#388e3c" // green
+              : ["fail", "failed"].includes(
+                  String(summary.interview_cleared_by_candidate).toLowerCase()
+                )
+              ? "#d32f2f" // red
+              : "#fbc02d", // yellow/orange for warning/other
+            fontWeight: 600,
+          }}
+          mb={2}
+        >
           Result: <b>{summary.interview_cleared_by_candidate}</b>
         </Typography>
       )}
@@ -205,8 +220,14 @@ export default function Performance() {
               <Chip
                 label={`Result: ${interview.interview_cleared_by_candidate}`}
                 color={
-                  interview.interview_cleared_by_candidate === "Cleared"
+                  ["pass", "cleared"].includes(
+                    String(interview.interview_cleared_by_candidate).toLowerCase()
+                  )
                     ? "success"
+                    : ["fail", "failed"].includes(
+                        String(interview.interview_cleared_by_candidate).toLowerCase()
+                      )
+                    ? "error"
                     : "warning"
                 }
                 sx={{ fontWeight: 700, fontSize: 16 }}

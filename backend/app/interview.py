@@ -112,12 +112,34 @@ def more_questions(payload: schemas.QuestionAnswerCreate, db: Session = Depends(
     interview = db.query(models.Interview).filter_by(id=payload.interview_id).first()
     if not interview:
         raise HTTPException(status_code=404, detail="Interview not found")
-    if interview.status == "COMPLETED":
+    if interview.status == "DONE_ASKING_QUESTIONS":
         logger.info(f"Interview {payload.interview_id} is COMPLETED. No more questions will be fetched.")
+
+        # Add service bus message logic (same as end_interview)
+        try:
+            correlationId = str(uuid4())
+            sb_payload = QuestionProcessPayload(
+                interview_id=str(interview.id),
+                question_id=0
+            )
+            message = ServiceBusMessageModel(
+                correlationId=correlationId,
+                session_id=f"{interview.user_id}-{interview.id}",
+                action_type="performance_measure",
+                user_id=interview.user_id,
+                timestamp=datetime.utcnow().isoformat(),
+                status="interview ended",
+                payload=sb_payload
+            )
+            logger.info(f"Queuing end_interview message to service bus from more_questions: {message}")
+            send_message_to_service_bus(message.dict())
+        except Exception as e:
+            logger.error(f"Failed to send end_interview message from more_questions: {e}")
+
         return []
 
     # Try up to 6 times with 3 seconds sleep if no questions found
-    for attempt in range(15):
+    for attempt in range(20):
         new_questions = db.query(models.QuestionAnswer).filter_by(
             user_id=payload.user_id,
             interview_id=payload.interview_id,
@@ -130,7 +152,6 @@ def more_questions(payload: schemas.QuestionAnswerCreate, db: Session = Depends(
         time.sleep(3)
     logger.info(f"No NEW questions found after 15 attempts for user {payload.user_id} interview {payload.interview_id}")
     return []
-
 
 
 @router.post("/upload_answer/{user_id}/{interview_id}/{question_id}/{type}")
@@ -189,4 +210,38 @@ def update_question_answer(qa_id: int, update: schemas.QuestionAnswerUpdate, db:
     send_message_to_service_bus(message.dict())
 
     return qa
+
+
+@router.post("/end_interview/{interview_id}")
+async def end_interview(interview_id: int, db: Session = Depends(get_db)):
+    """
+    Ends the interview and sends a performance measure message to the service bus.
+    """
+    try:
+        # Fetch interview details using interview_id
+        interview = db.query(models.Interview).filter_by(id=interview_id).first()
+        if not interview:
+            raise HTTPException(status_code=404, detail="Interview not found")
+        user_id = interview.user_id
+
+        correlationId = str(uuid4())
+        payload = QuestionProcessPayload(
+            interview_id=str(interview_id),
+            question_id=0
+        )
+        message = ServiceBusMessageModel(
+            correlationId=correlationId,
+            session_id=f"{user_id}-{interview_id}",
+            action_type="performance_measure",
+            user_id=user_id,
+            timestamp=datetime.utcnow().isoformat(),
+            status="interview ended",
+            payload=payload
+        )
+        logger.info(f"Queuing end_interview message to service bus: {message}")
+        send_message_to_service_bus(message.dict())
+        return {"message": "Interview ended and message sent to service bus."}
+    except Exception as e:
+        logger.error(f"Failed to end interview: {e}")
+        raise HTTPException(status_code=500, detail="Failed to end interview")
 

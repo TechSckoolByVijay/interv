@@ -341,49 +341,10 @@ export default function Interview() {
   };
 
   const handleEndInterview = async () => {
-    setLoading(true);
-    try {
-      // 1. Upload current answer and patch backend (same as handleNext)
-      const blobs = await getSegmentContinuousMulti();
-      for (const type of ["audio", "camera", "screen", "combined"]) {
-        const blob = blobs[type];
-        if (blob && blob.size > 0) {
-          const fileName = `${questions[currentIdx].question_id}_${type}.webm`;
-          const formData = new FormData();
-          formData.append("file", new File([blob], fileName, { type: "video/webm" }));
-          try {
-            await axios.post(
-              `/api/interview/upload_answer/${USER_ID}/${interviewId}/${questions[currentIdx].question_id}/${type}`,
-              formData
-            );
-          } catch (err) {
-            // Log but don't block
-            console.error(`[Interview] Failed to upload ${type}:`, err);
-          }
-        }
-      }
-      // await axios.patch(`/api/interview/question/${questions[currentIdx].id}`, {
-      //   audio_recording_path: `uploads/${USER_ID}/${interviewId}/${questions[currentIdx].question_id}_audio.webm`,
-      //   screen_recording_path: `uploads/${USER_ID}/${interviewId}/${questions[currentIdx].question_id}_screen.webm`,
-      //   camera_recording_path: `uploads/${USER_ID}/${interviewId}/${questions[currentIdx].question_id}_camera.webm`,
-      //   combined_recording_path: `uploads/${USER_ID}/${interviewId}/${questions[currentIdx].question_id}_combined.webm`,
-      //   status: "ATTEMPTED",
-      // });
-
-      // 2. Call backend /interview/{interview_id}/end API
-      await axios.post(`/api/interview/end_interview/${interviewId}`);
-
-
-      // 3. Stop recording and show done UI
-      await stopContinuousMulti();
-      setInterviewDone(true);
-      setSnackbar({ open: true, msg: "Interview ended.", severity: "info" });
-    } catch (err) {
-      console.error("[Interview] Failed to end interview:", err);
-      setSnackbar({ open: true, msg: "Failed to end interview", severity: "error" });
-    } finally {
-      setLoading(false);
-    }
+    console.log("[Interview] Ending interview. Stopping all recordings...");
+    await stopContinuousMulti();
+    setInterviewDone(true);
+    setSnackbar({ open: true, msg: "Interview ended.", severity: "info" });
   };
 
   // UI: Start page
