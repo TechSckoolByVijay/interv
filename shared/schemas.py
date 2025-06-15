@@ -1,5 +1,7 @@
 from pydantic import BaseModel
 from typing import Optional, List
+from datetime import datetime
+
 
 class UserCreate(BaseModel):
     username: str
@@ -48,17 +50,55 @@ class QuestionAnswerOut(BaseModel):
     candidate_grade: Optional[str]
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class InterviewSummary(BaseModel):
     id: int
+    user_id: int
     interview_name: str
-    timestamp: str
-    candidate_grade: str
+    status: str
+    score_in_percentage: Optional[str] = None
+    interview_cleared_by_candidate: Optional[str] = None
+    candidate_name: str
+    candidate_grade: Optional[str] = None
 
     class Config:
         orm_mode = True
 
+class Interview(BaseModel):
+    id: int
+    user_id: int
+    interview_name: str
+    status: str
+    score_in_percentage: Optional[str]
+    interview_cleared_by_candidate: Optional[str]
+
+    class Config:
+        from_attributes = True
+
+class QuestionAnswer(BaseModel):
+    id: int
+    user_id: int
+    interview_id: int
+    question_id: int
+    question_text: str
+    status: str
+    answer_text: Optional[str]
+    camera_recording_path: Optional[str]
+    screen_recording_path: Optional[str]
+    audio_recording_path: Optional[str]
+    combined_recording_path: Optional[str]
+    ai_answer: Optional[str]
+    ai_remark: Optional[str]
+    candidate_score: Optional[float]
+    candidate_grade: Optional[str]
+
+    class Config:
+        from_attributes = True
+
 class InterviewDetails(BaseModel):
-    interview: InterviewSummary
-    questions: List[QuestionAnswerOut]
+    interview: Interview
+    questions: List[QuestionAnswer]
+
+    class Config:
+        from_attributes = True

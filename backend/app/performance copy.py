@@ -52,15 +52,8 @@ def interview_details(interview_id: int, db: Session = Depends(get_db)):
     interview = db.query(models.Interview).filter_by(id=interview_id).first()
     if not interview:
         raise HTTPException(status_code=404, detail="Interview not found")
-    questions = (
-        db.query(models.QuestionAnswer)
-        .filter_by(interview_id=interview_id)
-        .order_by(models.QuestionAnswer.question_id.asc())
-        .all()
-    )
-    response = schemas.InterviewDetails(
+    questions = db.query(models.QuestionAnswer).filter_by(interview_id=interview_id).all()
+    return schemas.InterviewDetails(
         interview=schemas.Interview.from_orm(interview),
         questions=[schemas.QuestionAnswer.from_orm(q) for q in questions]
     )
-    logger.info(f"Returning interview details: {response.model_dump_json(indent=2)}")
-    return response

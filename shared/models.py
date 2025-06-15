@@ -1,6 +1,9 @@
 from sqlalchemy import Column, Integer, String, ForeignKey, Text, Float
 from sqlalchemy.orm import relationship
 from .database import Base
+from pydantic import BaseModel
+from datetime import datetime
+from typing import Optional
 
 class User(Base):
     __tablename__ = "users"
@@ -43,3 +46,5 @@ class QuestionAnswer(Base):
     ai_remark = Column(Text, nullable=True)
     candidate_score = Column(Float, nullable=True)
     candidate_grade = Column(String, nullable=True)
+
+

@@ -268,14 +268,30 @@ export default function Performance() {
                     color: "#fff",
                   }}
                 >
-                  <b>Your Answer:</b>{" "}
+                  <b>A:</b>{" "}
                   {qa.answer_text ? (
                     qa.answer_text
                   ) : (
                     <i style={{ color: "#888" }}>No answer recorded</i>
                   )}
                 </Typography>
-                {qa.ai_answer && (
+                {qa.combined_recording_path && (
+                  <Box sx={{ my: 1 }}>
+                    <audio
+                      controls
+                      src={qa.combined_recording_path}
+                      style={{
+                        width: "100%",
+                        background: "#22304a",
+                        borderRadius: 8,
+                        marginTop: 8,
+                      }}
+                    >
+                      Your browser does not support the audio element.
+                    </audio>
+                  </Box>
+                )}
+                {qa.ai_remark && (
                   <Typography
                     variant="body2"
                     sx={{
@@ -286,7 +302,7 @@ export default function Performance() {
                       color: "#1565c0",
                     }}
                   >
-                    <b>AI Answer:</b> {qa.ai_answer}
+                    <b>AI Remark:</b> {qa.ai_remark}
                   </Typography>
                 )}
                 <Stack direction="row" spacing={2} mt={1}>
