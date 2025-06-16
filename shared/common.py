@@ -1,14 +1,12 @@
-# file: util_queue.py
 import uuid
 import json
-from azure.servicebus import ServiceBusClient, ServiceBusMessage
 from datetime import datetime
 import os
 from pydantic import BaseModel
-from typing import Optional, Dict
-from datetime import datetime
-from typing import Union
+from typing import Optional, Dict, Union
 import logging
+from azure.servicebus import ServiceBusClient,ServiceBusMessage
+
 
 SERVICE_BUS_CONNECTION_STR = os.getenv("SERVICE_BUS_CONNECTION_STR")
 TOPIC_NAME = os.getenv("TOPIC_NAME")
@@ -52,4 +50,4 @@ def send_message_to_service_bus(message: dict):
             sender.send_messages(service_bus_message)
             logger.info("Message sent to Azure Service Bus successfully.")
     except Exception as e:
-        logger.error(f"Failed to send message to Azure Service Bus: {e}")
+        logger.error(f"Failed to send message to Azure Service Bus: {e}")    

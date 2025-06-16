@@ -4,10 +4,11 @@ from shared.database import SessionLocal
 from shared import models
 import os
 from fastapi.responses import FileResponse
-from backend.app.util_queue import (
+
+from shared.common import (
     send_message_to_service_bus,
     FileProcessPayload,
-    ServiceBusMessageModel,  # <-- use the new name
+    ServiceBusMessageModel
 )
 from shared.logger import logger
 import uuid
@@ -15,7 +16,7 @@ from datetime import datetime
 
 router = APIRouter()
 
-UPLOAD_DIR = "uploads/jd_resume"
+UPLOAD_DIR = os.getenv("UPLOAD_DIR", "/app/uploads/jd_resume")
 
 def get_db():
     db = SessionLocal()
@@ -30,7 +31,8 @@ async def upload_file(user_id: int, file_type: str, file: UploadFile = File(...)
     if file_type not in ["jd", "resume"]:
         logger.warning(f"Invalid file type received: {file_type}")
         raise HTTPException(status_code=400, detail="Invalid file type")
-    upload_dir = f"uploads/jd_resume/{user_id}"
+    #upload_dir = f"uploads/jd_resume/{user_id}"
+    upload_dir = f"{UPLOAD_DIR}/jd_resume/{user_id}"
     os.makedirs(upload_dir, exist_ok=True)
     file_path = f"{upload_dir}/{file_type}_{file.filename}"
     logger.debug(f"Upload directory ensured: {upload_dir}")

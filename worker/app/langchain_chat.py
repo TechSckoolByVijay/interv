@@ -4,13 +4,15 @@ from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from langchain.chat_models import ChatOpenAI
 from sqlalchemy.orm import Session
 from shared import models
-from backend.app.util_queue import (
-    send_message_to_service_bus,
+from shared.common import (
     QuestionProcessPayload,
-    ServiceBusMessageModel
+    ServiceBusMessageModel,
+    send_message_to_service_bus
 )
 from datetime import datetime
 from uuid import uuid4
+from dotenv import load_dotenv
+load_dotenv() 
    
 llm = ChatOpenAI(model="gpt-4", temperature=0.7)
 

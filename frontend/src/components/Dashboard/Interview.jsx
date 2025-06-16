@@ -291,13 +291,15 @@ export default function Interview() {
         }
       }
 
+      const UPLOADS_BASE = "/app/uploads";
+
       // Patch backend with file paths
       console.log(`[Interview] [Q${currentIdx + 1}] Patching backend with recording paths...`);
       await axios.patch(`/api/interview/question/${questions[currentIdx].id}`, {
-        audio_recording_path: `uploads/${USER_ID}/${interviewId}/${questions[currentIdx].question_id}_audio.webm`,
-        screen_recording_path: `uploads/${USER_ID}/${interviewId}/${questions[currentIdx].question_id}_screen.webm`,
-        camera_recording_path: `uploads/${USER_ID}/${interviewId}/${questions[currentIdx].question_id}_camera.webm`,
-        combined_recording_path: `uploads/${USER_ID}/${interviewId}/${questions[currentIdx].question_id}_combined.webm`,
+        audio_recording_path: `${UPLOADS_BASE}/${USER_ID}/${interviewId}/${questions[currentIdx].question_id}_audio.webm`,
+        screen_recording_path: `${UPLOADS_BASE}/${USER_ID}/${interviewId}/${questions[currentIdx].question_id}_screen.webm`,
+        camera_recording_path: `${UPLOADS_BASE}/${USER_ID}/${interviewId}/${questions[currentIdx].question_id}_camera.webm`,
+        combined_recording_path: `${UPLOADS_BASE}/${USER_ID}/${interviewId}/${questions[currentIdx].question_id}_combined.webm`,
         status: "ATTEMPTED",
       });
       console.log(`[Interview] [Q${currentIdx + 1}] Backend patched successfully.`);
@@ -362,13 +364,6 @@ export default function Interview() {
           }
         }
       }
-      // await axios.patch(`/api/interview/question/${questions[currentIdx].id}`, {
-      //   audio_recording_path: `uploads/${USER_ID}/${interviewId}/${questions[currentIdx].question_id}_audio.webm`,
-      //   screen_recording_path: `uploads/${USER_ID}/${interviewId}/${questions[currentIdx].question_id}_screen.webm`,
-      //   camera_recording_path: `uploads/${USER_ID}/${interviewId}/${questions[currentIdx].question_id}_camera.webm`,
-      //   combined_recording_path: `uploads/${USER_ID}/${interviewId}/${questions[currentIdx].question_id}_combined.webm`,
-      //   status: "ATTEMPTED",
-      // });
 
       // 2. Call backend /interview/{interview_id}/end API
       await axios.post(`/api/interview/end_interview/${interviewId}`);
@@ -472,6 +467,7 @@ export default function Interview() {
       </Box>
     );
   }
+
 
   return (
     <Box sx={{ maxWidth: 1100, mx: "auto", mt: 4 }}>

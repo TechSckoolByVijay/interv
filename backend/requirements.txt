@@ -6,3 +6,5 @@ python-dotenv
 alembic
 psycopg2-binary
 python-multipart
+azure-servicebus
+azure.core

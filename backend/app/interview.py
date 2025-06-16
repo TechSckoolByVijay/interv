@@ -7,21 +7,22 @@ from shared.database import SessionLocal
 from typing import List
 from shared.logger import logger
 import os
-from .util_queue import send_message_to_service_bus
+from shared.common import (
+    send_message_to_service_bus,
+    FileProcessPayload,
+    ServiceBusMessageModel,
+    QuestionProcessPayload
+)
 from datetime import datetime
 import uuid
 from uuid import uuid4
 from pydantic import BaseModel
 from typing import Optional, Dict
 from datetime import datetime
-from backend.app.util_queue import (
-    send_message_to_service_bus,
-    FileProcessPayload,
-    ServiceBusMessageModel, 
-    QuestionProcessPayload
-)
 import time  # Add this import at the top if not present
 
+
+UPLOAD_DIR = os.getenv("UPLOAD_DIR", "/app/uploads")
 
 router = APIRouter()
 
@@ -162,13 +163,12 @@ async def upload_answer_type(
     type: str,
     file: UploadFile = File(...)
 ):
-    # Save file logic...
-    file_path = f"uploads/{user_id}/{interview_id}/{question_id}_{type}_{file.filename}"
-    
+
     allowed_types = {"audio", "camera", "screen", "combined"}
     if type not in allowed_types:
         raise HTTPException(status_code=400, detail="Invalid recording type")
-    upload_dir = f"uploads/{user_id}/{interview_id}"
+    
+    upload_dir = f"{UPLOAD_DIR}/{user_id}/{interview_id}"
     os.makedirs(upload_dir, exist_ok=True)
     file_path = f"{upload_dir}/{file.filename}"
     with open(file_path, "wb") as buffer:
