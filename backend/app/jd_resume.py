@@ -31,7 +31,6 @@ async def upload_file(user_id: int, file_type: str, file: UploadFile = File(...)
     if file_type not in ["jd", "resume"]:
         logger.warning(f"Invalid file type received: {file_type}")
         raise HTTPException(status_code=400, detail="Invalid file type")
-    #upload_dir = f"uploads/jd_resume/{user_id}"
     upload_dir = f"{UPLOAD_DIR}/jd_resume/{user_id}"
     os.makedirs(upload_dir, exist_ok=True)
     file_path = f"{upload_dir}/{file_type}_{file.filename}"
@@ -74,6 +73,8 @@ async def upload_file(user_id: int, file_type: str, file: UploadFile = File(...)
 
     return {"filename": file.filename, "path": file_path}
 
+
+
 @router.get("/preview/{user_id}/{file_type}", summary="Preview JD or Resume")
 def preview_file(user_id: int, file_type: str, db: Session = Depends(get_db)):
     user = db.query(models.User).filter_by(id=user_id).first()
@@ -91,6 +92,8 @@ def preview_file(user_id: int, file_type: str, db: Session = Depends(get_db)):
             raise HTTPException(status_code=404, detail="Resume text not found")
     else:
         raise HTTPException(status_code=400, detail="Invalid file type")
+
+
 
 @router.delete("/delete/{user_id}/{file_type}", summary="Delete JD or Resume")
 def delete_file(user_id: int, file_type: str, db: Session = Depends(get_db)):

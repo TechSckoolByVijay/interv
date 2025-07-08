@@ -35,6 +35,10 @@ def get_db():
     finally:
         db.close()
 
+# Dummy questions for demonstration
+QUESTION_BANK = [
+    {"question_id": 1, "question_text": "hello and welcome to this interview. Can we startwith a quick introduction of yours?"},
+]
 
 @router.post("/interview")
 def create_interview(interview: schemas.InterviewCreate, db: Session = Depends(get_db)):
@@ -80,6 +84,27 @@ def queue_next_question(
     send_message_to_service_bus(message.dict())
 
     return {"message": "Queued next_question", "correlationId": correlationId}
+
+
+@router.post("/start_interview", response_model=List[schemas.QuestionAnswerOut])
+def start_interview(payload: schemas.QuestionAnswerCreate, db: Session = Depends(get_db)):
+    # Pick 3 new questions (could be random or sequential)
+    selected_questions = QUESTION_BANK[:3]
+    created = []
+    for q in selected_questions:
+        qa = models.QuestionAnswer(
+            user_id=payload.user_id,
+            interview_id=payload.interview_id,
+            question_id=q["question_id"],
+            question_text=q["question_text"],
+            status="NEW"
+        )
+        db.add(qa)
+        db.commit()
+        db.refresh(qa)
+        created.append(qa)
+        logger.info(f"Inserted question {q['question_id']} for user {payload.user_id} interview {payload.interview_id}")
+    return created
 
 
 @router.post("/more_questions", response_model=List[schemas.QuestionAnswerOut])
